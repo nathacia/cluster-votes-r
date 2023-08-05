@@ -1,0 +1,101 @@
+---
+title: "Cluster Analysis on votes.repub dataset"
+author: "Nathacia Nathacia"
+date: '2023-02-13'
+output:
+  pdf_document:
+    keep_tex: true
+    latex_engine: pdflatex
+    pandoc_args: ["--pdf-engine=pdflatex", "--variable=geometry:a4paper"]
+    toc: true
+    toc_depth: 3
+
+---
+
+#### Loading necessary packages
+```{r, results='hide'}
+library(cluster)
+library(factoextra)
+library(car)
+library(dbscan)
+```
+I began the script by selecting the necessary packages for the analyses.
+
+
+## Cluster Analysis
+#### votes.repub dataset
+
+### Importing dataset
+```{r, results='hide'}
+data(package='cluster')
+data("votes.repub")
+View(votes.repub)
+```
+I started by importing the votes.repub dataset from the cluster package.
+
+
+### Investigating data
+```{r}
+str(votes.repub)
+summary(votes.repub)
+class(votes.repub)
+names(votes.repub)
+```
+I then proceeded to investigate the data to gain some insight on the data using various functions including View(), str(), summary(), class(), etc. The View() and summary() function showed a lot of NA values within the dataset, which would need to be omitted later on in the preprocessing stage. The data type is a data frame and using the pairs() function did not work as the figure margins were too large.
+
+
+### Preprocessing
+```{r}
+votesdset <- na.omit(votes.repub)
+```
+Following this is the preprocessing step where I used the na.omit() function on the votes.repub dataset and assigned it to a new variable called votesdset. The number of observations dropped to 19 from 50.
+
+
+### Visualizations
+I then continued by visualizing the data using the function get_dist() using both the euclidean and pearson method and assigning it to a new variable called dist and dist1 respectively. By using the function fviz_dist() on the new dist variable, I was able to see this result:
+```{r}
+dist <- get_dist(votesdset, method = 'euclidean')
+fviz_dist(dist)
+
+dist1 <- get_dist(votesdset, method = 'pearson')
+fviz_dist(dist1)
+```
+
+
+### Kmeans clustering analysis
+Following this step, I proceeded to do the kmeans portion using the function fviz_nbclust() in order to see the estimated optimal number of centroids from the dataset for k. Here I am using the within sum of squares (wss) method to see the trend of within some of
+squares between different clusters and data points in the dataset. There is a limitation to kmeans insofar that the initial centroids are randomly placed in the dataset based on which clusters are identified. Hence, we will be using the set.seed(123) function. Based on the results, I use the kmeans() function on the votesdset using 5 as center and 25 as nstart, and assign it to a new variable called k1. The results gave me between_SS / total_SS = 76.5 %, which means that about 76.5% of the variation in the dataset is explained by the clusters. The cluster sizes in the 5 clusters are 3, 2, 11, 1, 2. I visualized it using the code ‘fviz_cluster(k1, data=votesdset)’ and the cluster plot is as follows:
+```{r}
+fviz_nbclust(votesdset, kmeans, method = 'wss')
+set.seed(123)
+k1 <- kmeans(votesdset, center=5, nstart=25)
+k1
+fviz_cluster(k1, data=votesdset)
+```
+
+
+### Hierarchical clustering analysis
+```{r, warning=FALSE}
+hc1 <- agnes(votesdset, method = 'complete') 
+plot(hc1, cex.axis=0.8, cex.lab=0.8)
+hc2 <- agnes(votesdset, method = 'single')
+plot(hc2, cex.axis=0.8, cex.lab=0.8)
+hc3 <- agnes(votesdset, method = 'average')
+plot(hc3, cex.axis=0.8, cex.lab=0.8)
+
+hc1$ac
+hc2$ac
+hc3$ac
+```
+Next, I continued to do the hierarchical clustering using the agnes() function in order to analyze the dataset and identify the nested cluster or hierarchy. Using the complete method, I was able to obtain this result with an agglomerative coefficient of 0.8, which is rather close to 1. Values this high and close to 1 indicate that strong clustering structures are being created. I used the same code with the single and average methods as well. The agglomerative coefficients for the methods complete, single, and average are 0.8, 0.51, and 0.67 respectively. From the dendrograms we can observe that Kentucky and Maryland, for instance, have similar percentages of voters that voted for the republican candidate. The complete method is the best cluster proximity measure as it has the greatest agglomerative coefficient compared to the other methods (closest to 1).
+
+
+### Density based clustering
+```{r}
+kNNdistplot(votesdset, k=5)
+
+db <- dbscan(votesdset, eps = 50, minPts = 5)
+fviz_cluster(db, data = votesdset)
+```
+After this is density based clustering using the kNNdistplot() function using the votesdset data and k as 5. From the graph, I will select 50 as the radius of the core points. To create the dense based cluster, I create a new variable called db and use the dbscan() function using the votesdset dataset, 50 as the eps (radius), and 5 as the minPts.
+From this cluster plot, we can see that the single outlier is Vermont. This means that the state of Vermont has a much higher percentage of voters who voted for the republican candidate compared to the other states.
